@@ -27,7 +27,7 @@ process() method, which check if a header attribute named 'wm-etoe-transaction-i
 
 # Usage
 
-Create a webMethods package with a service, that invokes several other services. Change the audit level of the services to "always" and the level to "start, success and error".
+Create a webMethods package with a service that then invokes several sub services. Change the audit level of the services to "always" and the level to "start, success and error".
 Go to the logged fields tab and select some fields to log as well.
 
 Use the following curl command to invoke your service.
