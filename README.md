@@ -23,7 +23,7 @@ Integration Servers if using the publish or publishAndWait services (the id is i
 We can do something similar by forcing the root context id based on an attribute from the header, which is shown in the method determineRootContextId() called from the
 process() method, which check if a header attribute named 'wm-etoe-transaction-id' exists. If so it overrides the current root context id with that supplied.
 
-NOTE: the value for 'wm-etoe-transaction-id' must be a valid UUID field, otherwise it will be ignored.
+*NOTE*: the value for 'wm-etoe-transaction-id' must be a valid UUID field, otherwise it will be ignored.
 
 # Usage
 
