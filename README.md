@@ -36,7 +36,7 @@ Use the following curl command to invoke your service, editing the url path to m
      -H 'etoe-transaction-id: f10f14ac-8297-11eb-8dcd-0242ac130003' 
      -u 'Administrator:manage'`    
  
-Update the chainPreProcessor() and chainPostProcessor() to call the end-to-end monitor agent.
+Update the chainPreProcessor() and chainPostProcessor() to call your code.
 
 # Issues
 
