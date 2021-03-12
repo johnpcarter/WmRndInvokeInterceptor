@@ -47,15 +47,6 @@ Forcing the root context id will not override the default wm value for the start
 
 `Http Request Processor -> Invoke Processor -> AuditLogManager -> InvokeInterceptor -> etc -> SERVICE`
 
-To fix this, would require the audit interceptor to be updated (com/wm/app/b2b/server/AuditLogManager) to include the code in this example. This would also allow us to give the
-user the choice of destinations for auditing i.e.
-
-1. file
-2. database
-3. end to end monitoring
-4. file & end to end monitoring
-5. database & end to end monitoring
-
 
 # Relationship between context id's
 
