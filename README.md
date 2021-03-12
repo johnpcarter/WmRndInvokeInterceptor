@@ -32,8 +32,8 @@ Go to the logged fields tab and select some fields to log as well.
 
 Use the following curl command to invoke your service, editing the url path to match your service.
 
-`curl "http://localhost:5555/invoke/jc.test:hello?name=bob" \
-     -H 'etoe-transaction-id: f10f14ac-8297-11eb-8dcd-0242ac130003' \
+`curl "http://localhost:5555/invoke/jc.test:hello?name=bob" \  
+     -H 'etoe-transaction-id: f10f14ac-8297-11eb-8dcd-0242ac130003' \  
      -u 'Administrator:manage'`    
  
 Update the chainPreProcessor() and chainPostProcessor() to call the end-to-end monitor agent.
