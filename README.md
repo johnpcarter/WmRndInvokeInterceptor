@@ -30,7 +30,7 @@ process() method, which check if a header attribute named 'wm-etoe-transaction-i
 Create a webMethods package with a service that then invokes several sub services. Change the audit level of the services to "always" and the level to "start, success and error".
 Go to the logged fields tab and select some fields to log as well.
 
-Use the following curl command to invoke your service.
+Use the following curl command to invoke your service, editing the url path to match your service.
 
 `curl "http://localhost:5555/invoke/jc.test:hello?name=bob" \
      -H 'etoe-transaction-id: f10f14ac-8297-11eb-8dcd-0242ac130003' \
