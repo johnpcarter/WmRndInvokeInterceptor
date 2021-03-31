@@ -151,7 +151,28 @@ public class InvokeInterceptor implements InvokeChainProcessor {
     			
     	// base auditing on requirements from audit sub-system
     	    	
-    	if (baseService.getAuditSettings().isStartAuditEnabled()) {
+    	if (serviceName.startsWith("wm.tn")) {
+    		
+    		// TN is a special case, won't do this for any other subproducts, honest!
+
+    		if (serviceName.equals("wm.tn.route:route")) {
+        		// processing rule will be called
+    			
+    		} else if (serviceName.equals("wm.tn.doc:relateDocuments")) {
+    			// one document is being related to another i.e. parent or child
+    			
+    		} else if (serviceName.equals("wm.tn:log")) {
+    			// custom logging
+    			
+    		} else if (serviceName.equals("wm.tn.route:invoke")) {
+    			// wrapper for processing rule service
+    			
+    		} else if (serviceName.equals("wm.tn.delivery:deliver")) {
+    			// wrapper for delivery method
+    			
+    		}
+    		
+    	} else if (baseService.getAuditOption() == BaseService.AUDIT_ENABLE && baseService.getAuditSettings().isStartAuditEnabled()) {
     		
     		System.out.println("Processing start " + serviceName + " / " + integrationId);
     		
@@ -172,7 +193,27 @@ public class InvokeInterceptor implements InvokeChainProcessor {
      */
     protected void chainPostProcessor(String integrationId, String serviceName, BaseService baseService, IData pipeline, ServiceStatus status) {
     	    	
-    	if (baseService.getAuditSettings().isCompleteAuditEnabled()) {
+    	if (serviceName.startsWith("wm.tn")) {
+    		
+    		// TN is a special case, won't do this for any other subproducts, honest!
+
+    		if (serviceName.equals("wm.tn.route:route")) {
+        		// processing rule will be called
+    			
+    		} else if (serviceName.equals("wm.tn.doc:relateDocuments")) {
+    			// one document is being related to another i.e. parent or child
+    			
+    		} else if (serviceName.equals("wm.tn:log")) {
+    			// custom logging
+    			
+    		} else if (serviceName.equals("wm.tn.route:invoke")) {
+    			// wrapper for processing rule service
+    			
+    		} else if (serviceName.equals("wm.tn.delivery:deliver")) {
+    			// wrapper for delivery method
+    			
+    		}
+    	} else if (baseService.getAuditOption() == BaseService.AUDIT_ENABLE && baseService.getAuditSettings().isCompleteAuditEnabled()) {
     			
     			// TODO: report success
     			
@@ -185,7 +226,7 @@ public class InvokeInterceptor implements InvokeChainProcessor {
         		//TODO:
         		
         		System.out.println("no of keys: " + businessData.size());
-    	}
+    	} 
     }
     
     /**
