@@ -84,10 +84,11 @@ public class InvokeInterceptor implements InvokeChainProcessor {
             if(chain.hasNext()) {
                 
                 if (chainPreProcessor(id, name, baseService, pipeline)) {
+                	
                 	//TODO: Do we want to make audit destination one of file, db or external monitoring or should it be a complement
                 	
-                	// we logged via etoe, so disable internal logging, don't want to do it twice
-                	baseService.setAuditSettings(new AuditSettings());
+                	// ASSUMPTION: we logged via etoe, so disable internal logging, don't need to monitor locally.
+                	baseService.setAuditOption(BaseService._AUDIT_OFF);
                 }
                 
                 ((InvokeChainProcessor)chain.next()).process(chain, baseService, pipeline, status);
@@ -183,6 +184,8 @@ public class InvokeInterceptor implements InvokeChainProcessor {
     		//TODO: 
     		
     		System.out.println("no of keys: " + businessData.size());
+    		
+    		didLog = true;
     	}
     	
     	return didLog;
