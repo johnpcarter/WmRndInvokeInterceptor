@@ -36,7 +36,8 @@ import com.wm.util.ServerException;
 public class InvokeInterceptor implements InvokeChainProcessor {
 		 
 	public static final String 			WM_ENDTOEND_TRANSACTION_ID = "wm-etoe-transaction-id";
-	
+	public static final String 			WM_ROOT_CONTEXT_ID = "wm-root-context-id";
+
 	/** 
 	 * Used to identify the webMethods root context id based in runtime-attribute array
 	 * returned by InvokeState. Attention this will have to be tested for each webMethods
@@ -132,7 +133,19 @@ public class InvokeInterceptor implements InvokeChainProcessor {
         }*/
     	
     	if (status.isTopService()) {
-    		return Service.getCurrentActivationID();
+    		
+    		// do we have an existing root context id, propagated from another IS server
+    		
+    		if (getSharedRootContextId() != null) {
+    			
+    			String id = getSharedRootContextId();
+                setRootContextIdForThread(id);
+
+            	return id;
+    		} else {
+        		return Service.getCurrentActivationID();
+    		}
+    		
     	} else {
 
     		return InvokeInterceptor.getContextIDsForService()[0];
@@ -158,6 +171,13 @@ public class InvokeInterceptor implements InvokeChainProcessor {
     	
     	HttpHeader header = Service.getHttpRequestHeader();
     	return Service.getHttpHeaderField(WM_ENDTOEND_TRANSACTION_ID, header);
+    }
+    
+    protected String getSharedRootContextId() {
+        // TODO: pull from header
+    	
+    	HttpHeader header = Service.getHttpRequestHeader();
+    	return Service.getHttpHeaderField(WM_ROOT_CONTEXT_ID, header);
     }
   
     
