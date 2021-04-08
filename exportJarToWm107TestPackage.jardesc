@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <jardesc>
-    <jar path="/Applications/SoftwareAG/10.7/IntegrationServer/instances/default/packages/JcTest/code/jars/static/invoke-interceptor.jar"/>
+    <jar path="/Applications/SoftwareAG/10.7/IntegrationServer/instances/default/packages/JcEtoEUseCases/code/jars/static/invoke-interceptor.jar"/>
     <options buildIfNeeded="true" compress="true" descriptionLocation="/WmRnDInvokeInterceptor/exportJarToWm107TestPackage.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="false" overwrite="false" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
     <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
     <selectedProjects/>
