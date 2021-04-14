@@ -8,6 +8,7 @@ import com.wm.app.b2b.server.InvokeException;
 import com.wm.app.b2b.server.InvokeState;
 import com.wm.app.b2b.server.ServiceException;
 import com.wm.app.b2b.server.invoke.InvokeChainProcessor;
+import com.wm.app.b2b.server.invoke.InvokeManager;
 import com.wm.app.b2b.server.invoke.ServiceStatus;
 import com.wm.data.IData;
 import com.wm.data.IDataCursor;
@@ -21,14 +22,10 @@ import com.wm.util.ServerException;
  * Implements the webMethods InvokeChainProcessor interface to allow services
  * to be intercepted.
  * 
- * Don't forget to update the <SAG_HOME>/IntegrationServer/config/invokemananger.cnf file and add
- * the class of the interceptor class. Otherwise webMethods
- * will not be aware of your interceptor. In addition the classes must be 
- * loaded at startup so ensure that the class is packaged in a static jar
- * 
- * Ideally would want to modify the class com/wm/app/b2b/server/AuditLogManager
- * to include this code as it would ensure that the start audit would also
- * have the correct root context id.
+ * Use static register() method below to register this class as part of the invoke chain
+ * alternatively you can update the <SAG_HOME>/IntegrationServer/config/invokemananger.cnf file and add
+ * the class of the interceptor class. 
+ * In addition the classes must be loaded at startup so ensure that the class is packaged in a static jar
  * 
  * @author John Carter (john.carter@softwareag.com)
  */
@@ -45,6 +42,15 @@ public class InvokeInterceptor implements InvokeChainProcessor {
 	public static final int				WM_ROOT_CONTEXT_ID_INDEX = 0;
 	
     private static InvokeInterceptor    _default;
+    
+    public static void register() {
+    	
+    	InvokeManager.getDefault().registerProcessor(new InvokeInterceptor());
+    }
+    
+    public static void unregister() {
+    	InvokeManager.getDefault().unregisterProcessor(_default);
+    }
     
     public InvokeInterceptor() {
     	
