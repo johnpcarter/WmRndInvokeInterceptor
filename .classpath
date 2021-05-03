@@ -3,10 +3,11 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/wm"/>
-	<classpathentry kind="lib" path="lib/org.apache.commons.jxpath_1.3.0.jar"/>
 	<classpathentry kind="lib" path="lib/wm-is-osgi-profile.jar"/>
 	<classpathentry kind="lib" path="lib/wm-isclient.jar"/>
 	<classpathentry kind="lib" path="lib/wm-isproxy.jar"/>
 	<classpathentry kind="lib" path="lib/wm-isserver.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
+	<classpathentry kind="lib" path="/Users/jcart/Programming/eclipse/workspace107/WmRndInvokeInterceptor/lib/skywalking-agent.jar" sourcepath="/skywalking/src/main/java"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
