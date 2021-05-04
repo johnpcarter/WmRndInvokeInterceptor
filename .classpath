@@ -9,5 +9,6 @@
 	<classpathentry kind="lib" path="lib/wm-isserver.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
 	<classpathentry kind="lib" path="/Users/jcart/Programming/eclipse/workspace107/WmRndInvokeInterceptor/lib/skywalking-agent.jar" sourcepath="/skywalking/src/main/java"/>
+	<classpathentry kind="lib" path="/Users/jcart/Programming/eclipse/workspace107/WmRndInvokeInterceptor/lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

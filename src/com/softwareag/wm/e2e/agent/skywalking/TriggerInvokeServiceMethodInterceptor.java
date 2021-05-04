@@ -20,58 +20,57 @@ package com.softwareag.wm.e2e.agent.skywalking;
 
 import java.lang.reflect.Method;
 
-import org.apache.skywalking.apm.agent.core.context.CarrierItem;
-import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
-import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
+import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
+import org.json.simple.parser.ParseException;
 
 import com.wm.app.b2b.server.BaseService;
-import com.wm.app.b2b.server.Service;
-import com.wm.net.HttpHeader;
+import com.wm.app.b2b.server.InvokeState;
+import com.wm.data.IData;
+import com.wm.msg.SimpleCondition;
 
-public class AuditLogManagerProcessMethodInterceptor implements InstanceMethodsAroundInterceptor {
+public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAroundInterceptor {
 
     @Override
     public void beforeMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
 
-       System.out.println("** IS AGENT ** AuditLogManager - before - " + method.getName());
+    	SimpleCondition c = (SimpleCondition) allArguments[0];
+    	
+    	System.out.println("** IS AGENT ** Trigger - before - " + c.getServiceName());
        
-       //if (baseService.getAuditOption() == BaseService.AUDIT_ENABLE && baseService.getAuditSettings().isStartAuditEnabled()) {
-    	   String serviceName = "bob";
-       
-    	   System.out.println("Creating entry span for " + serviceName);
+		System.out.println("thread ref: " + Thread.currentThread().getId());
 
-    	   HttpHeader headers = Service.getHttpRequestHeader();
-       
-    	   ContextCarrier contextCarrier = new ContextCarrier();
-    	   CarrierItem next = contextCarrier.items();
-    	   while (next.hasNext()) {
-    		   next = next.next();
-    		   next.setHeadValue(headers.getFieldValue(next.getHeadKey()));
-    	   }
+    	String transactionId = TriggerTools.getTransactionId((IData) allArguments[1]); 
 
-    	   AbstractSpan span = ContextManager.createEntrySpan(serviceName, contextCarrier);
-    	   // only if a valid span is created, should we populate the rest of span
-		
-    	   if (ContextManager.isActive()) {
-    		   System.out.println("Created successfully");
-    	   }
-       //}
+    	if (transactionId != null) {
+    		System.out.println("Creating entry span for trigger");
+
+    		try {
+    			ServiceUtils.startEntrySpan(c.getServiceName().getFullName(), transactionId);
+    			
+    			if (ContextManager.isActive()) {
+    				System.out.println("trace id is " + ContextManager.getGlobalTraceId());
+    			}
+    		} catch (ParseException e) {
+    			// TODO Auto-generated catch block
+    			e.printStackTrace();
+    		}
+    	}
     }
 
     @Override
     public Object afterMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final Object ret) {
 
-        System.out.println("** IS AGENT ** AuditLogManager - after - " + method.getName());
-
-        if (ContextManager.isActive()) {
-			ContextManager.stopSpan();
-		}
+    	SimpleCondition c = (SimpleCondition) allArguments[0];
+    	
+    	System.out.println("** IS AGENT ** Trigger - after - " + c.getServiceName());
+       
+        ServiceUtils.stopSpan(c.getServiceName().getFullName());
 
         return ret;
     }
@@ -80,7 +79,7 @@ public class AuditLogManagerProcessMethodInterceptor implements InstanceMethodsA
     public void handleMethodException(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final Throwable t) {
 
-        System.out.println("** IS AGENT ** AuditLogManager - exception - " + method.getName());
+        System.out.println("** IS AGENT ** ServiceThread - exception - " + method.getName());
 
        
     }

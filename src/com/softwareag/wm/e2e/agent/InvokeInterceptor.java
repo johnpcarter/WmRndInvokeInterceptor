@@ -100,19 +100,11 @@ public class InvokeInterceptor implements InvokeChainProcessor {
                 	//baseService.setAuditOption(BaseService._AUDIT_OFF);
                 }
                 
-                HttpHeader header = Service.getHttpRequestHeader();
-                
-                if (name.equals("pub.client:http") && Service.getHttpHeaderField(WM_ENDTOEND_TRANSACTION_ID, header) != null) {
-                	IDataCursor c = pipeline.getCursor();
-                	IData headers = IDataUtil.getIData(c, "headers");
-                	IDataCursor hc = headers.getCursor();
-
-                	IDataUtil.put(hc, WM_ENDTOEND_TRANSACTION_ID, Service.getHttpHeaderField(WM_ENDTOEND_TRANSACTION_ID, header));
-                	hc.destroy();
-                	c.destroy();
-                }
+                System.out.println("start " + name);
                 
                 ((InvokeChainProcessor)chain.next()).process(chain, baseService, pipeline, status);
+                
+                System.out.println("done " + name);
                 
                 // service success
                 
@@ -416,7 +408,7 @@ public class InvokeInterceptor implements InvokeChainProcessor {
         return packageName;
     }
     
-    protected static String[] getContextIDsForService() {
+    public static String[] getContextIDsForService() {
         
     	String[] contextIDs = {null, null, null, null};
 
@@ -464,7 +456,7 @@ public class InvokeInterceptor implements InvokeChainProcessor {
 			 return;
 		 }
 		 
-		 		 		 
+		 		 
 		 InvokeState is = InvokeState.getCurrentState();
                
           if (is != null)

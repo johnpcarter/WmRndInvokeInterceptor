@@ -8,16 +8,18 @@ import org.apache.skywalking.apm.agent.core.plugin.match.ClassMatch;
 import org.apache.skywalking.apm.dependencies.net.bytebuddy.description.method.MethodDescription;
 import org.apache.skywalking.apm.dependencies.net.bytebuddy.matcher.ElementMatcher;
 
+import com.wm.app.b2b.server.AuditLogManager;
+
 import static org.apache.skywalking.apm.dependencies.net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import static org.apache.skywalking.apm.dependencies.net.bytebuddy.matcher.ElementMatchers.named;
 import static org.apache.skywalking.apm.agent.core.plugin.match.NameMatch.byName;
 
-public class AuditLogManagerInstrumentation extends ClassEnhancePluginDefine {
+public class ServiceRuntimeInstrumentation extends ClassEnhancePluginDefine {
 	
-	private static final String INTERCEPT_CLASS = "com.wm.app.b2b.server.AuditLogManager";
-	//private static final String INTERCEPT_CLASS = "com.wm.app.b2b.server.invoke.DispatchProcessor"
+	//private static final String INTERCEPT_CLASS = "com.wm.app.b2b.server.AuditLogManager";
+	private static final String INTERCEPT_CLASS = "com.wm.app.b2b.server.invoke.DispatchProcessor";
     private static final String CALLABLE_CALL_METHOD = "process";
-    private static final String CALLABLE_CALL_METHOD_INTERCEPTOR = "com.softwareag.wm.e2e.agent.skywalking.AuditLogManagerMethodInterceptor";
+    private static final String CALLABLE_CALL_METHOD_INTERCEPTOR = "com.softwareag.wm.e2e.agent.skywalking.ServiceRuntimeInterceptor";
 
     @Override
     protected ClassMatch enhanceClass() {
@@ -38,7 +40,7 @@ public class AuditLogManagerInstrumentation extends ClassEnhancePluginDefine {
             new InstanceMethodsInterceptPoint() {
                 @Override
                 public ElementMatcher<MethodDescription> getMethodsMatcher() {
-                    return named(CALLABLE_CALL_METHOD);
+                    return named(CALLABLE_CALL_METHOD).and(takesArguments(4));
                 }
 
                 @Override

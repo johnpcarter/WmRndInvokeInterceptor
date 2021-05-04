@@ -49,12 +49,17 @@ public class ServiceThreadInstrumentation extends ClassEnhancePluginDefine {
     protected ClassMatch enhanceClass() {
     	
     	System.out.println("** IS AGENT ** - Setting up ServiceThread agent");
-    	
+    	       
     	return byName(INTERCEPT_CLASS);
     }
 
    @Override
     public ConstructorInterceptPoint[] getConstructorsInterceptPoints() {
+	   
+	   return new ConstructorInterceptPoint[0];
+	   
+	   /* not required init below is called from constructor systematically
+	    * 
         return new ConstructorInterceptPoint[] {
             new ConstructorInterceptPoint() {
                 @Override
@@ -68,13 +73,29 @@ public class ServiceThreadInstrumentation extends ClassEnhancePluginDefine {
                     return CALLABLE_CLASS_INTERCEPTOR;
                 }
             }
-        };
+        };     */
     }
 
    	@Override
    	public InstanceMethodsInterceptPoint[] getInstanceMethodsInterceptPoints() {
        return new InstanceMethodsInterceptPoint[] {
-           new InstanceMethodsInterceptPoint() {
+    		   new InstanceMethodsInterceptPoint() {
+                   @Override
+                   public ElementMatcher<MethodDescription> getMethodsMatcher() {
+                       return named(RUN_METHOD);
+                   }
+
+                   @Override
+                   public String getMethodsInterceptor() {
+                       return RUN_METHOD_INTERCEPTOR;
+                   }
+
+                   @Override
+                   public boolean isOverrideArgs() {
+                       return false;
+                   }
+               },
+    		   new InstanceMethodsInterceptPoint() {
                @Override
                public ElementMatcher<MethodDescription> getMethodsMatcher() {
                    return named(REUSE_METHOD);
@@ -83,22 +104,6 @@ public class ServiceThreadInstrumentation extends ClassEnhancePluginDefine {
                @Override
                public String getMethodsInterceptor() {
                    return REUSE_METHOD_INTERCEPTOR;
-               }
-
-               @Override
-               public boolean isOverrideArgs() {
-                   return false;
-               }
-           },
-           new InstanceMethodsInterceptPoint() {
-               @Override
-               public ElementMatcher<MethodDescription> getMethodsMatcher() {
-                   return named(RUN_METHOD);
-               }
-
-               @Override
-               public String getMethodsInterceptor() {
-                   return RUN_METHOD_INTERCEPTOR;
                }
 
                @Override

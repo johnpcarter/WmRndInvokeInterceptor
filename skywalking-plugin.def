@@ -15,4 +15,5 @@
 # limitations under the License.
 
 service=com.softwareag.wm.e2e.agent.skywalking.ServiceThreadInstrumentation
-audit=com.softwareag.wm.e2e.agent.skywalking.AuditLogManagerInstrumentation
+audit=com.softwareag.wm.e2e.agent.skywalking.ServiceRuntimeInstrumentation
+trigger=com.softwareag.wm.e2e.agent.skywalking.TriggerInstrumentation

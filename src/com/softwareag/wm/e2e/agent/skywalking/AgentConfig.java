@@ -19,6 +19,8 @@ public class AgentConfig {
              * request.
              */
             public static boolean COLLECT_HTTP_PARAMS = true;
+            
+            public static boolean KEEP_TRACING = true;
         }
     }
 }
