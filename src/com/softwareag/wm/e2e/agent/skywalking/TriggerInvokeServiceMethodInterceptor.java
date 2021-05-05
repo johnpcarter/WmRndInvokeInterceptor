@@ -34,13 +34,14 @@ import com.wm.msg.SimpleCondition;
 
 public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAroundInterceptor {
 
+
     @Override
     public void beforeMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
 
     	SimpleCondition c = (SimpleCondition) allArguments[0];
     	
-    	System.out.println("** IS AGENT ** Trigger - before - " + c.getServiceName());
+    	System.out.println("** IS AGENT ** Trigger - before - " + getOperationName(c));
        
 		System.out.println("thread ref: " + Thread.currentThread().getId());
 
@@ -50,7 +51,7 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
     		System.out.println("Creating entry span for trigger");
 
     		try {
-    			ServiceUtils.startEntrySpan(c.getServiceName().getFullName(), transactionId);
+    			ServiceUtils.startEntrySpan(getOperationName(c), transactionId);
     			
     			if (ContextManager.isActive()) {
     				System.out.println("trace id is " + ContextManager.getGlobalTraceId());
@@ -68,9 +69,9 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
 
     	SimpleCondition c = (SimpleCondition) allArguments[0];
     	
-    	System.out.println("** IS AGENT ** Trigger - after - " + c.getServiceName());
+    	System.out.println("** IS AGENT ** Trigger - after - " + getOperationName(c));
        
-        ServiceUtils.stopSpan(c.getServiceName().getFullName());
+        ServiceUtils.stopSpan(getOperationName(c));
 
         return ret;
     }
@@ -84,8 +85,9 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
        
     }
 
-    private String generateOperationName(final EnhancedInstance objInst, final Method method) {
-        return "Threading/" + objInst.getClass().getName() + "/" + method.getName();
+    private String getOperationName(SimpleCondition triggerCondition) {
+    	
+    	return triggerCondition.getServiceName().getFullName();
     }
 
 }

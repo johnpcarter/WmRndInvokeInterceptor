@@ -40,7 +40,7 @@ import com.wm.data.IDataFactory;
 import com.wm.data.IDataUtil;
 
 public class ServiceRuntimeInterceptor implements InstanceMethodsAroundInterceptor {
-
+	
     @SuppressWarnings("rawtypes")
 	@Override
     public void beforeMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
@@ -90,41 +90,11 @@ public class ServiceRuntimeInterceptor implements InstanceMethodsAroundIntercept
         	
         	if (serviceName.equals("pub.client:http")) {
             	
-            	// need to create an exit span 
+            	startHttpExitSpan(pipeline);
         		
-        		IDataCursor c = pipeline.getCursor();
-        		String url = IDataUtil.getString(c, "url");
-            	IData headers = IDataUtil.getIData(c, "headers");
+            } else if (serviceName.equals("pub.publish:publish") || serviceName.equals("pub.publish:publishAndWait") || serviceName.equals("pub.publish:deliver")) {
 
-            	headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), headers, url);
-            	
-            	IDataUtil.put(c, "headers", headers);
-            	c.destroy();
-        		
-            } else if (serviceName.equals("pub.publish:publish")) {
-
-            	IDataCursor c = pipeline.getCursor();
-        		String docType = IDataUtil.getString(c, "documentTypeName");
-            	IData doc = IDataUtil.getIData(c, "document");
-            	IDataCursor dc = doc.getCursor();
-            	IData env = IDataUtil.getIData(dc, "_env");
-            	
-            	IData headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), null, docType);
-            	
-            	if (env == null) {
-            		env = IDataFactory.create();
-            	}
-            	
-            	IDataCursor ec = env.getCursor();
-            	IDataCursor hc = headers.getCursor();
-            	
-            	IDataUtil.put(ec, "transactionId", IDataUtil.get(hc, SW8CarrierItem.HEADER_NAME));
-
-            	IDataUtil.put(dc, "_env", env);
-            	hc.destroy();
-            	ec.destroy();
-            	dc.destroy();
-            	c.destroy();
+            	startPublishExitSpan(pipeline);
             	
             } else {
             	auditViaSkywalking(serviceName, baseService, pipeline, status);
@@ -132,9 +102,34 @@ public class ServiceRuntimeInterceptor implements InstanceMethodsAroundIntercept
         	}
         } else if (baseService.getAuditOption() == BaseService.AUDIT_ENABLE && baseService.getAuditSettings().isCompleteAuditEnabled()) {
     			
-            	
         	auditViaSkywalking(serviceName, baseService, pipeline, status);
         }
+    }
+    
+    protected void startHttpExitSpan(IData pipeline) throws ParseException {
+    
+    	// need to create an exit span 
+		
+		IDataCursor c = pipeline.getCursor();
+		String url = IDataUtil.getString(c, "url");
+    	IData headers = IDataUtil.getIData(c, "headers");
+
+    	headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), headers, url);
+    	
+    	IDataUtil.put(c, "headers", headers);
+    	c.destroy();
+    }
+    
+    protected void startPublishExitSpan(IData pipeline) throws ParseException {
+    
+    	IDataCursor c = pipeline.getCursor();
+		IData doc = IDataUtil.getIData(c, "document");
+		String docType = IDataUtil.getString(c, "documentTypeName");
+		c.destroy();
+    	
+    	IData headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), null, docType);
+    	
+    	TriggerTools.updatePublishedDocWithTransactionId(doc, headers);
     }
     
     /**

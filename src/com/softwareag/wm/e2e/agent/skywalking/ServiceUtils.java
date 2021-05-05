@@ -239,6 +239,8 @@ public class ServiceUtils {
 		
 		if (transactionId != null) {
 			
+			// used for non http clients such as UM etc.
+			
 			CarrierItem next = contextCarrier.items();
 	        
 			while (next.hasNext()) {
