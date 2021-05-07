@@ -64,10 +64,18 @@ public class ServiceRuntimeInterceptor implements InstanceMethodsAroundIntercept
 
         String serviceName = ServiceUtils.getServiceName((BaseService) allArguments[1]); 
 
-        System.out.println("** IS AGENT ** AuditLogManager - after - " + serviceName);
+        if (((ServiceStatus) allArguments[3]).getStatus() == ServiceStatus.STATUS_FAIL) {
+        	
+        	System.out.println("** IS AGENT ** AuditLogManager - exception - " + serviceName);
 
-        ServiceUtils.stopSpan(serviceName);
+            ServiceUtils.handleInterceptorException(((ServiceStatus) allArguments[3]).getThrownException());
+            
+        } else {
+            System.out.println("** IS AGENT ** AuditLogManager - after - " + serviceName);
 
+        	ServiceUtils.stopSpan(serviceName);
+        }
+        
         return ret;
     }
 
