@@ -36,19 +36,15 @@ public class ServiceThreadRunMethodInterceptor implements InstanceMethodsAroundI
        
        // propagate fields from object to current thread
        
-       if (ContextManager.isActive()) {
-    	   final Object storedField = objInst.getSkyWalkingDynamicField();
+    	  final Object storedField = objInst.getSkyWalkingDynamicField();
        
-    	   if (storedField != null) {
+    	  if (storedField != null) {
     	   
-    		   System.out.println("** IS AGENT ** ServiceThread - passing sw fields from object into thread");
+    		  System.out.println("** IS AGENT ** ServiceThread - passing sw fields from object into thread");
     	   
-    		   final ContextSnapshot contextSnapshot = (ContextSnapshot) storedField;
-    		   ContextManager.continued(contextSnapshot);
-    	   }
-       } else {
-		   System.out.println("** IS AGENT ** ServiceThread - no active span to pass into thread");
-       }
+    		  final ContextSnapshot contextSnapshot = (ContextSnapshot) storedField;
+    		  ContextManager.continued(contextSnapshot);
+    	  }
     }
 
     @Override
