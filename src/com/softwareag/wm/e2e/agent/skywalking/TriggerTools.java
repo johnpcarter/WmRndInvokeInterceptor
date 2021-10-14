@@ -1,6 +1,6 @@
 package com.softwareag.wm.e2e.agent.skywalking;
 
-import org.apache.skywalking.apm.agent.core.context.SW8CarrierItem;
+import org.apache.skywalking.apm.agent.core.context.SW6CarrierItem;
 
 import com.wm.data.IData;
 import com.wm.data.IDataCursor;
@@ -41,7 +41,7 @@ public class TriggerTools {
     	IDataCursor ec = env.getCursor();
     	IDataCursor hc = skywHeader.getCursor();
     	
-    	IDataUtil.put(ec, TriggerTools.PUB_ENV_ATTRIB_TRACE_ID, IDataUtil.get(hc, SW8CarrierItem.HEADER_NAME));
+    	IDataUtil.put(ec, TriggerTools.PUB_ENV_ATTRIB_TRACE_ID, IDataUtil.get(hc, SW6CarrierItem.HEADER_NAME));
 
     	IDataUtil.put(dc, "_env", env);
     	hc.destroy();

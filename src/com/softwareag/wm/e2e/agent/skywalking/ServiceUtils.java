@@ -2,22 +2,25 @@ package com.softwareag.wm.e2e.agent.skywalking;
 
 
 import java.util.Map;
+import java.util.Stack;
 import java.util.StringTokenizer;
 
-import static java.util.Objects.nonNull;
-
 import java.util.HashMap;
+import java.util.List;
 
 import org.apache.skywalking.apm.agent.core.context.CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
-import org.apache.skywalking.apm.agent.core.context.SW8CarrierItem;
+import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
+import org.apache.skywalking.apm.agent.core.context.RuntimeContext;
+import org.apache.skywalking.apm.agent.core.context.SW6CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
 import org.apache.skywalking.apm.agent.core.context.trace.NoopSpan;
 import org.apache.skywalking.apm.agent.core.context.trace.SpanLayer;
+import org.apache.skywalking.apm.agent.core.context.util.TagValuePair;
 import org.apache.skywalking.apm.agent.core.logging.api.ILog;
-//import org.apache.skywalking.apm.agent.core.plugin.uhm;
 import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
+import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
 import org.apache.skywalking.apm.dependencies.com.google.common.base.Strings;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -36,6 +39,54 @@ import com.wm.lang.ns.NSService;
 import com.wm.net.EncodeURL;
 
 public class ServiceUtils {
+	
+	private static class SpanTracker {
+						
+		ContextSnapshot snapshot = null;
+		
+		private AbstractSpan parentSpan;
+		SpanTracker grandadTracker = null;
+		
+		private int count = 0;
+		
+		SpanTracker(ContextSnapshot snapshot, AbstractSpan span, SpanTracker grandadTracker) {
+			this.snapshot = snapshot;
+			this.parentSpan = span;
+			this.grandadTracker = grandadTracker;
+						
+			span.prepareForAsync();
+
+			if (this.grandadTracker != null) {
+				this.grandadTracker.count += 1;
+				System.out.println("Incrementing dependents for " + this.grandadTracker.parentSpan.getOperationName() + " to " + this.grandadTracker.count);
+			}
+			
+	 		System.out.println("asyncing span " + getFullyQualifiedName(span));			
+		}
+		
+		boolean isFinished() {
+			return count == 0;
+		}
+		
+		protected synchronized void complete() {
+			
+			if (this.count > 0 ) {
+				System.out.println("deferring sync for span " + parentSpan.getOperationName() + " / " + count);
+				this.count -= 1;
+			} else {
+				
+				System.out.println("syncing span " + getFullyQualifiedName(parentSpan));
+
+				this.parentSpan.asyncFinish();
+								
+				if (grandadTracker != null) {// && grandadSpan.isFinished()) {
+				// check if we can finally finish grandparent too		
+				
+					grandadTracker.complete();
+				}
+			}
+		}
+	}
 
 	private static final ILog logger = LogManager.getLogger(ServiceUtils.class);
 	/**
@@ -50,68 +101,12 @@ public class ServiceUtils {
 	private static final String WMIC_EXECUTION_PARAM_HEADER_KEY = "X-WMIC-EXECUTION-CONTROL-PARAMETERS-AS-JSON";
 	private static final String X_WMIC_SUBDOMAIN_HEADER_KEY = "X-WMIC-SUBDOMAIN";
 	private static final String ERROR_MSG = "Error in ";
-	
+		
+	private static ThreadLocal<SpanTracker> PARENT_SPAN = new ThreadLocal<>();
+
 	private ServiceUtils() {
 		// do nothing
 	}
-
-	/**
-	 * Handles any intercepted exception.
-	 * 
-	 * @param t
-	 */
-	public static void handleInterceptorException(Throwable t) {
-		try {
-			if (ContextManager.isActive()) {
-				ContextManager.activeSpan().errorOccurred().log(t);
-			}
-		} catch (Exception e) {
-			logger.error(ERROR_MSG, e);
-		}
-	}
-
-	public static void stopSpan(String entityName) {
-	
-		if (ContextManager.isActive() && ContextManager.activeSpan().getOperationName().contentEquals(entityName)) {
-			stopSpan();
-		}
-		
-	}
-	
-	/**
-	 * Stops the active entry span.
-	 */
-	public static void stopSpan() {
-		try {
-			if (ContextManager.isActive()) {
-				// always stop the span, no matter what type
-				
-				System.out.println("span closed " + ContextManager.activeSpan().getOperationName());
-				ContextManager.stopSpan();
-			}
-		} catch (Exception e) {
-			logger.error(ERROR_MSG, e);
-		}
-	}
-
-	/**
-	 * Discards the active entry span.
-	 */
-	/*public static void discardEntrySpan() {
-		try {
-			// if the TxID is not set then we need to discard this span and this TxID should
-			// be set
-			// for WMIC-IS by EventEmitter.emitEvent()
-			// for API by BaseCollectionManager.publish()
-			if (!DEVELOPER_MODE && ContextManager.isActive() && nonNull(ContextManager.activeSpan())
-					&& !ServiceUtils.isTransactionIDAvailable(ContextManager.activeSpan())) {
-								
-				//ContextManager.discardActiveSpan(); // added by SAG
-			}
-		} catch (Exception e) {
-			logger.error(ERROR_MSG, e);
-		}
-	}*/
 
 	/**
 	 * Starts an entry span from the HTTPState
@@ -119,9 +114,11 @@ public class ServiceUtils {
 	 * @param gState - current HTTPState
 	 * @throws ParseException 
 	 */
-	public static void startEntrySpan(String entityName, String customTransactionId, InvokeState state) throws ParseException {
+	public static void startEntrySpan(String entityName, String serviceName, IData pipeline, String customTransactionId, InvokeState state, String component) {
 			
-		ContextCarrier contextCarrier = createContextCarrier(null);
+ 		System.out.println("Starting entry span for " + serviceName);
+
+		ContextCarrier contextCarrier = createContextCarrier(getGlobalTraceId(pipeline));
 
 		// start a entry span to denote that we have entered into IS
 		AbstractSpan span = ContextManager.createEntrySpan(entityName, contextCarrier);
@@ -131,29 +128,34 @@ public class ServiceUtils {
 		// only if a valid span is created, we should populate the rest of span
 		if (!(ContextManager.activeSpan() instanceof NoopSpan)) {
 
-			populateSpanData(span, entityName, customTransactionId, state);
+			populateSpanData(span, entityName, serviceName, customTransactionId, state, component);
 
 			SpanLayer.asHttp(span);
 		}
 	}
-
+	
 	 /* Starts an entry span from the HTTPState
 	 * 
 	 * @param gState - current HTTPState
 	 * @throws ParseException 
 	 */
 	public static void startEntrySpan(String entityName, String transactionId) throws ParseException {
-			
+
+ 		System.out.println("Starting entry span for " + entityName);
+
 		ContextCarrier contextCarrier = createContextCarrier(transactionId);
 
 		// start a entry span to denote that we have entered into IS
-		AbstractSpan span = ContextManager.createEntrySpan(entityName, contextCarrier);
-				
+		 ContextManager.createEntrySpan(entityName, contextCarrier);
 	}
-	 
-	public static void startLocalSpan(String entityName) {
 
-		AbstractSpan span = ContextManager.createLocalSpan(entityName);
+	public static void startLocalSpan(String entityName, String serviceName, String customTransactionId, InvokeState state, String component) {
+
+ 		System.out.println("Starting local span " + serviceName + " under " + getFullyQualifiedName());
+
+		AbstractSpan span = ContextManager.createLocalSpan(serviceName);
+		
+		populateSpanData(span, entityName, serviceName, customTransactionId, state, component);
 	}
 	
  	public static IData startExitSpan(String entityName, IData headers, String remotePeer) throws ParseException {
@@ -180,26 +182,92 @@ public class ServiceUtils {
 	}
 	
 	/**
-	 * Helper method to find if TransactionID is available in a span. It will loop
-	 * through all the tags and find if it has "txn" key present & it has some value
+	 * Handles any intercepted exception.
 	 * 
-	 * @param activeSpan - currently active span
-	 * @return
-	 *
-	private static boolean isTransactionIDAvailable(AbstractSpan activeSpan) {
-		
-		activeSpan.of
-		List<TagValuePair> tags = activeSpan.getTags();
-		if (CollectionUtils.isNotEmpty(tags)) {
-			for (TagValuePair tag : tags) {
-				if (tag.getKey().key().equalsIgnoreCase(Tags.UHM.TRANSACTION_ID.key()) && null != tag.getValue()
-						&& !tag.getValue().isEmpty()) {
-					return true;
-				}
+	 * @param t
+	 */
+	public static void handleInterceptorException(Throwable t) {
+		try {
+			if (ContextManager.isActive()) {
+				ContextManager.activeSpan().errorOccurred().log(t);
 			}
+		} catch (Exception e) {
+			logger.error(ERROR_MSG, e);
 		}
-		return false;
-	}*/
+	}
+
+	public static void stopSpan(String serviceName) {
+	
+		if (ContextManager.isActive() && serviceName.equals(getFullyQualifiedName())) {
+					
+	 		System.out.println("stopping span " + serviceName);
+
+			stopSpan();
+		} else if (getFullyQualifiedName() != null) {
+			System.out.println("mismatched spans " + serviceName + " / " + getFullyQualifiedName());
+		}
+	}
+	
+	/**
+	 * Stops the active entry span.
+	 */
+	public static void stopSpan() {
+		
+		try {
+			if (ContextManager.isActive()) {
+				// always stop the span, no matter what type
+				
+				System.out.println("span closed " + getFullyQualifiedName());
+				ContextManager.stopSpan();				
+			}
+		} catch (Exception e) {
+			logger.error(ERROR_MSG, e);
+		}
+	}
+	
+	public static void prepareForAsync(final EnhancedInstance objInst) {
+		
+		AbstractSpan span = ContextManager.activeSpan();
+		int id = span.getSpanId();
+		
+		SpanTracker snap = new SpanTracker(ContextManager.capture(), span, (SpanTracker) PARENT_SPAN.get());
+		
+		objInst.setSkyWalkingDynamicField(snap);		
+	}
+	
+	public static void startLocalSpanFromContext(String serviceName, final EnhancedInstance objInst) {
+	
+		if (objInst.getSkyWalkingDynamicField() != null) {
+
+			SpanTracker snap = (SpanTracker) objInst.getSkyWalkingDynamicField();
+			// start a span from the given context
+			
+			AbstractSpan span = ContextManager.createLocalSpan(serviceName);
+			ContextManager.continued(snap.snapshot);
+												
+			PARENT_SPAN.set(snap);
+									
+	 		System.out.println("Starting in new thread local span " + serviceName + " under " + getFullyQualifiedName(snap.parentSpan));
+	 		
+	 		System.out.println("Global trace id is " + getGlobalTraceId());
+		}
+	}
+	
+	public static void asyncCompleted(String serviceName, final EnhancedInstance objInst) {	
+		
+		if (objInst.getSkyWalkingDynamicField() != null) {
+		
+			SpanTracker snap = (SpanTracker) objInst.getSkyWalkingDynamicField();
+			AbstractSpan span = ContextManager.activeSpan();
+	   		ServiceUtils.stopSpan(serviceName);
+			snap.complete();
+			
+			PARENT_SPAN.set(null);
+			
+		} else {
+			System.out.println("no dynamic fields");
+		}
+	}
 	
 	/**
 	 * Populates all data in given span from http object.
@@ -207,25 +275,36 @@ public class ServiceUtils {
 	 * @param gState - current HTTPState
 	 * @param span   - current active span
 	 */
-	public static void populateSpanData(AbstractSpan span, String entityName, String customTransactionId, InvokeState gState) {
+	public static void populateSpanData(AbstractSpan span, String opName, String fullyQualifiedName, String customTransactionId, InvokeState gState, String component) {
 		// decorate the span with tags
 		
 		//Tags.URL.set(span, Utils.sanitizeFullyQualifiedName(gState.getRequestUrl()));
 		//Tags.HTTP.METHOD.set(span, gState.getRequestTypeAsString());
 		
-		span.tag(CustomTags.OPERATION_NAME, entityName);
-		span.tag(CustomTags.FULLY_QUALIFIED_NAME, entityName);
+		span.tag(CustomTags.OPERATION_NAME, opName);
+		span.tag(CustomTags.FULLY_QUALIFIED_NAME, fullyQualifiedName);
 		
 		if (customTransactionId != null) {
 			span.tag(CustomTags.CUSTOM_TRANSACTION_ID, customTransactionId);
 		}
 		
-		span.tag(CustomTags.STAGE, gState.getStageID());
-		span.tag(CustomTags.TENANT_ID, getTenantID(gState));
-
-		span.tag(CustomTags.COMPONENT, "Integration");
+		if (gState != null) {
+			span.tag(CustomTags.STAGE, gState.getStageID());
+			span.tag(CustomTags.TENANT_ID, getTenantID(gState));
+		}
+		
+		span.tag(CustomTags.COMPONENT, component);
 	}
 
+	public static String omitPath(String service) {
+		
+		if (service != null && service.indexOf(":") != -1) {
+			return service.substring(service.indexOf(":") + 1);
+		} else {
+			return service;
+		}
+	}
+	
 	/**
 	 * Creates contextCarrier with given http request.
 	 * 
@@ -233,7 +312,7 @@ public class ServiceUtils {
 	 * @return
 	 * @throws ParseException
 	 */
-	public static ContextCarrier createContextCarrier(String transactionId) throws ParseException {
+	public static ContextCarrier createContextCarrier(String transactionId) {
 		
 		ContextCarrier contextCarrier = new ContextCarrier();
 		
@@ -246,11 +325,11 @@ public class ServiceUtils {
 			while (next.hasNext()) {
 				next = next.next();
 
-				if (next.getHeadKey().contentEquals(SW8CarrierItem.HEADER_NAME)) {
+				if (next.getHeadKey().contentEquals(SW6CarrierItem.HEADER_NAME)) {
 					next.setHeadValue(transactionId);
 				}
 			}
-		} else if (getTraceId() != null) {
+		} else if (getGlobalTraceId() != null) {
 			
 			// propagate existing header fields
 			
@@ -272,8 +351,71 @@ public class ServiceUtils {
 		
 		return contextCarrier;
 	}
+	
+	public static String getFullyQualifiedName() {
+		
+		if (ContextManager.isActive()) {
+			return getFullyQualifiedName(ContextManager.activeSpan());
+		} else {
+			return null;
+		}
+	}
+	
+	public static String getFullyQualifiedName(AbstractSpan span) {
+	
+		String name = null;
+		
+		if (span != null) {
+			
+			name = span.getOperationName();
+			
+			List<TagValuePair> tags = span.getTags();
+			
+			if (tags != null) {
+				for (TagValuePair t : tags) {
+					if (t.getKey().equals(CustomTags.FULLY_QUALIFIED_NAME)) {
+						name = t.getValue();
+						break;
+					}
+				}
+			}
+		}
+		
+		return name;
+	}
+	
+	public static BizDocWrapper getBizdocFromPipeline(IData pipeline) {
+		    
+	    	IDataCursor c = pipeline.getCursor();
+	    	IData bizDoc = IDataUtil.getIData(c, "bizdoc");
+	    	c.destroy();
+	    	
+	    	return bizDoc != null ? new BizDocWrapper(bizDoc) : null;
+	}
+	 
+	public static String getGlobalTraceId(IData pipeline) {
+		
+		BizDocWrapper bizdoc = getBizdocFromPipeline(pipeline);
+		
+		if (bizdoc == null || bizdoc.getGlobalTracingId() == null) {
+			return getGlobalTraceId();
+		} else {
+			return bizdoc.getGlobalTracingId();
+		}
+	}
 
-	public static String getTraceId() throws ParseException {
+	public static String getGlobalTraceId(BizDocWrapper bizdoc) {
+		
+		String id = bizdoc.getGlobalTracingId();
+		
+		if (id == null) {
+			return getGlobalTraceId();
+		} else {
+			return id;
+		}
+	}
+	
+	public static String getGlobalTraceId() {
 		
 		if (ContextManager.getGlobalTraceId() != "N/A") {
 			
@@ -282,7 +424,7 @@ public class ServiceUtils {
 			// get http headers from gState of httpDispatch
 			
 			Map<String, String> reqHeaders = Service.getHttpRequestHeader().getFieldsMap();
-			String sw6Value = reqHeaders.get(SW8CarrierItem.HEADER_NAME);
+			String sw6Value = reqHeaders.get(SW6CarrierItem.HEADER_NAME);
 			logger.debug("sw6 value in req header " + sw6Value);
 		
 			// check if value is present for the sw6 header or not
@@ -294,9 +436,15 @@ public class ServiceUtils {
 			
 				if (!Strings.isNullOrEmpty(wmicExecutionParamHeader)) {
 					JSONParser parser = new JSONParser();
-					JSONObject json = (JSONObject) parser.parse(EncodeURL.decode(wmicExecutionParamHeader));
-					sw6Value = (String) json.get(SW8CarrierItem.HEADER_NAME);
-					logger.debug("sw6 value in wmic execution param header " + sw6Value);
+					try {
+						JSONObject json = (JSONObject) parser.parse(EncodeURL.decode(wmicExecutionParamHeader));
+						sw6Value = (String) json.get(SW6CarrierItem.HEADER_NAME);
+						logger.debug("sw6 value in wmic execution param header " + sw6Value);
+					} catch (ParseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					
 				} else {
 					logger.debug("sw6 value is null in wmic execution param header ");
 				}
@@ -304,7 +452,6 @@ public class ServiceUtils {
 			
 			return sw6Value;
 		}
-		
 	}
 	
 	/**
@@ -416,7 +563,8 @@ public class ServiceUtils {
    }
 	   
    private static Object _extractDataFromPipeline(String xpath, IData doc) {
-   		return _extractDataFromPipeline(new StringTokenizer(xpath, "/"), doc);
+   		
+	   return _extractDataFromPipeline(new StringTokenizer(xpath, "/"), doc);
    }
 	   
    private static Object _extractDataFromPipeline(StringTokenizer path, IData doc) {

@@ -20,25 +20,21 @@ package com.softwareag.wm.e2e.agent.skywalking;
 
 import java.lang.reflect.Method;
 
-
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
+import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 
 public class ServiceThreadInitMethodInterceptor implements InstanceMethodsAroundInterceptor {
-
+	
     @Override
     public void beforeMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
-
-       System.out.println("** IS AGENT ** ServiceThread - before - " + method.getName());
           	
    		if (ContextManager.isActive()) {
-   			System.out.println("** IS-AGENT ** ServiceThread - transferring context into object");
-   			objInst.setSkyWalkingDynamicField(ContextManager.capture());
-       } else {
-       		System.out.println("** IS-AGENT ** ServiceThread - NONE sw6 contex t- " + method.getName());
+   			   			
+   			ServiceUtils.prepareForAsync(objInst);
        }
     }
 
@@ -56,7 +52,5 @@ public class ServiceThreadInitMethodInterceptor implements InstanceMethodsAround
         final Class<?>[] argumentsTypes, final Throwable t) {
 
         System.out.println("** IS AGENT ** ServiceThread - exception - " + method.getName());
-
-       
     }
 }

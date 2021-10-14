@@ -18,6 +18,7 @@
 
 package com.softwareag.wm.e2e.agent.skywalking;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
@@ -26,33 +27,43 @@ import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedI
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 
+import com.wm.lang.ns.NSName;
+
+
 public class ServiceThreadRunMethodInterceptor implements InstanceMethodsAroundInterceptor {
 
     @Override
     public void beforeMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
-        final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
-
-       System.out.println("** IS AGENT ** ServiceThread - before - " + method.getName());
+        
+    	final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
        
        // propagate fields from object to current thread
-       
-    	  final Object storedField = objInst.getSkyWalkingDynamicField();
-       
-    	  if (storedField != null) {
-    	   
-    		  System.out.println("** IS AGENT ** ServiceThread - passing sw fields from object into thread");
-    	   
-    		  final ContextSnapshot contextSnapshot = (ContextSnapshot) storedField;
-    		  ContextManager.continued(contextSnapshot);
-    	  }
+         
+        String serviceName = generateOperationName(objInst, method);
+
+    	if (objInst.getSkyWalkingDynamicField() != null) {
+              
+   		   System.out.println("** THREAD ** - start - " + serviceName);
+
+   		   ServiceUtils.startLocalSpanFromContext(serviceName, objInst);   		   
+		} else {
+	   		   System.out.println("** THREAD ** - ignored - " + serviceName);
+		}
     }
 
     @Override
     public Object afterMethod(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final Object ret) {
+					
+    	if (ContextManager.isActive()) {
+    		String serviceName = generateOperationName(objInst, method);
 
-        // nothing to do here
-
+    		//ServiceUtils.stopSpan(serviceName);
+			
+    		System.out.println("** THREAD ** - end - " + serviceName);
+    		ServiceUtils.asyncCompleted(serviceName, objInst);
+    	}
+    	
         return ret;
     }
 
@@ -60,13 +71,23 @@ public class ServiceThreadRunMethodInterceptor implements InstanceMethodsAroundI
     public void handleMethodException(final EnhancedInstance objInst, final Method method, final Object[] allArguments,
         final Class<?>[] argumentsTypes, final Throwable t) {
 
-        System.out.println("** IS AGENT ** ServiceThread - exception - " + method.getName());
+        System.out.println("** THREAD ** - exception - " + method.getName());
 
        
     }
 
     private String generateOperationName(final EnhancedInstance objInst, final Method method) {
-        return "Threading/" + objInst.getClass().getName() + "/" + method.getName();
+    	
+    	try {
+			Field field = objInst.getClass().getDeclaredField("service");
+			field.setAccessible(true);
+			
+			NSName ns = (NSName) field.get(objInst);
+	        return "threading/" + ns.getFullName();
+
+		} catch (IllegalArgumentException | IllegalAccessException | NoSuchFieldException | SecurityException e) {
+			return "threading/" + objInst.getClass().getCanonicalName();
+		}
     }
 
 }

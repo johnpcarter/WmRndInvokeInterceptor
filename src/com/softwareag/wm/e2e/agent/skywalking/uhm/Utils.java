@@ -2,7 +2,7 @@ package com.softwareag.wm.e2e.agent.skywalking.uhm;
 
 import org.apache.skywalking.apm.agent.core.context.CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
-import org.apache.skywalking.apm.agent.core.context.SW8CarrierItem;
+import org.apache.skywalking.apm.agent.core.context.SW6CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
 import org.apache.skywalking.apm.agent.core.logging.api.ILog;
 import org.apache.skywalking.apm.agent.core.logging.api.LogManager;
@@ -98,7 +98,7 @@ public final class Utils {
 			while (next.hasNext()) {
 				next = next.next();
 				String key = next.getHeadKey();
-				if (key.equalsIgnoreCase(SW8CarrierItem.HEADER_NAME))
+				if (key.equalsIgnoreCase(SW6CarrierItem.HEADER_NAME))
 					next.setHeadValue(traceHeaderValue);
 			}
 		}
@@ -117,7 +117,7 @@ public final class Utils {
 			while (next.hasNext()) {
 				next = next.next();
 				String key = next.getHeadKey();
-				if (key.equalsIgnoreCase(SW8CarrierItem.HEADER_NAME))
+				if (key.equalsIgnoreCase(SW6CarrierItem.HEADER_NAME))
 					return next.getHeadValue();
 			}
 		}

@@ -21,14 +21,11 @@ package com.softwareag.wm.e2e.agent.skywalking;
 import java.lang.reflect.Method;
 
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
-import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 import org.json.simple.parser.ParseException;
 
-import com.wm.app.b2b.server.BaseService;
-import com.wm.app.b2b.server.InvokeState;
 import com.wm.data.IData;
 import com.wm.msg.SimpleCondition;
 
