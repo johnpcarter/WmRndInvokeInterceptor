@@ -145,6 +145,9 @@ public class AuditLogManagerInterceptor implements InstanceMethodsAroundIntercep
 
             	startPublishExitSpan(pipeline);
             	
+            }  else if (serviceName.equals("pub.jms:send") || serviceName.equals("pub.jms:sendAndWait")) {
+
+            	startJMSPublishExitSpan(pipeline);
             } else {
             	
                // System.out.println("** IS AGENT ** AuditLogManager - before - " + serviceName);
@@ -183,7 +186,19 @@ public class AuditLogManagerInterceptor implements InstanceMethodsAroundIntercep
     	
     	IData headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), null, docType);
     	
-    	TriggerTools.updatePublishedDocWithTransactionId(doc, headers);
+    	TriggerTools.updatePublishDocWithGlobalTraceId(doc, headers);
+    }
+    
+    protected void startJMSPublishExitSpan(IData pipeline) throws ParseException {
+        
+    	IDataCursor c = pipeline.getCursor();
+		IData doc = IDataUtil.getIData(c, "JMSMessage");
+		String docType = IDataUtil.getString(c, "documentTypeName");
+		c.destroy();
+    	
+    	IData headers = ServiceUtils.startExitSpan(ContextManager.activeSpan().getOperationName(), null, docType);
+    	
+    	TriggerTools.updateJMSPublishDocWithGlobalTraceId(doc, headers);
     }
     
     /**

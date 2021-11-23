@@ -11,15 +11,17 @@ public class TriggerTools {
 
 	public static final String PUB_ENV_ATTRIB_TRACE_ID = "transactionId";
 
-	public static final String getTransactionId(IData pipeline) {
+	public static final String getGlobalTraceId(IData pipeline) {
 		
 		String t = null;
 		IDataCursor c = pipeline.getCursor();
 		
 		while(c.hasMoreData()) {
 			c.next();
-			if (c.getValue() instanceof IData) {
-				t = lookInDoc((IData) c.getValue());
+			if (c.getKey().equals("JMSMessage")) {
+				t = extractGlobalTraceIdFromJMSMessage((IData) c.getValue());
+			} else if (c.getValue() instanceof IData) {
+				t = lookForTransactionIdInMessagingEnvelope((IData) c.getValue());
 				
 				if (t != null) 
 					break;
@@ -29,9 +31,9 @@ public class TriggerTools {
 		return t;
 	}
 	
-	public static final void updatePublishedDocWithTransactionId(IData publishedDocument, IData skywHeader) {
+	public static final void updatePublishDocWithGlobalTraceId(IData publishDocument, IData skywHeader) {
 	
-    	IDataCursor dc = publishedDocument.getCursor();
+    	IDataCursor dc = publishDocument.getCursor();
     	IData env = IDataUtil.getIData(dc, "_env");
     	
 		if (env == null) {
@@ -49,7 +51,27 @@ public class TriggerTools {
     	dc.destroy();
 	}
 	
-	public static final String lookInDoc(IData doc) {
+	public static final void updateJMSPublishDocWithGlobalTraceId(IData publishDocument, IData skywHeader) {
+		
+    	IDataCursor dc = publishDocument.getCursor();
+    	IData properties = IDataUtil.getIData(dc, "properties");
+    	
+		if (properties == null) {
+			properties = IDataFactory.create();
+    	}
+    	
+    	IDataCursor ec = properties.getCursor();
+    	IDataCursor hc = skywHeader.getCursor();
+    	
+    	IDataUtil.put(ec, TriggerTools.PUB_ENV_ATTRIB_TRACE_ID, IDataUtil.get(hc, SW6CarrierItem.HEADER_NAME));
+
+    	IDataUtil.put(dc, "properties", properties);
+    	hc.destroy();
+    	ec.destroy();
+    	dc.destroy();
+	}
+	
+	private static final String lookForTransactionIdInMessagingEnvelope(IData doc) {
 		
 		String t = null;
 		IDataCursor c = doc.getCursor();
@@ -62,6 +84,20 @@ public class TriggerTools {
 		}
 		
 		c.destroy();
+		
+		return t;
+	}
+	
+	private static final String extractGlobalTraceIdFromJMSMessage(IData doc) {
+		
+		String t = null;
+		
+		IDataCursor dc = doc.getCursor();
+    	IData properties = IDataUtil.getIData(dc, "properties");
+    	
+		if (properties != null) {
+			t = IDataUtil.getString(dc, TriggerTools.PUB_ENV_ATTRIB_TRACE_ID);
+		}
 		
 		return t;
 	}

@@ -42,7 +42,7 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
        
 		System.out.println("thread ref: " + Thread.currentThread().getId());
 
-    	String transactionId = TriggerTools.getTransactionId((IData) allArguments[1]); 
+    	String transactionId = TriggerTools.getGlobalTraceId((IData) allArguments[1]); 
 
     	if (transactionId != null) {
     		System.out.println("Creating entry span for trigger");
