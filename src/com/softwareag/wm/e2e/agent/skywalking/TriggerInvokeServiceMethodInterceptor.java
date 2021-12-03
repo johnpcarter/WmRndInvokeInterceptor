@@ -19,6 +19,7 @@
 package com.softwareag.wm.e2e.agent.skywalking;
 
 import java.lang.reflect.Method;
+import java.util.Map;
 
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedInstance;
@@ -42,13 +43,13 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
        
 		System.out.println("thread ref: " + Thread.currentThread().getId());
 
-    	String transactionId = TriggerTools.getGlobalTraceId((IData) allArguments[1]); 
+    	Map<String, String> swHeader = TriggerTools.getGlobalTraceId((IData) allArguments[1]); 
 
-    	if (transactionId != null) {
+    	if (swHeader != null) {
     		System.out.println("Creating entry span for trigger");
 
     		try {
-    			ServiceUtils.startEntrySpan(getOperationName(c), transactionId);
+    			SpanTools.startEntrySpan(getOperationName(c), null, swHeader, "IS");
     			
     			if (ContextManager.isActive()) {
     				System.out.println("trace id is " + ContextManager.getGlobalTraceId());
@@ -68,7 +69,7 @@ public class TriggerInvokeServiceMethodInterceptor implements InstanceMethodsAro
     	
     	System.out.println("** IS AGENT ** Trigger - after - " + getOperationName(c));
        
-        ServiceUtils.stopSpan(getOperationName(c));
+        SpanTools.stopSpan(getOperationName(c));
 
         return ret;
     }

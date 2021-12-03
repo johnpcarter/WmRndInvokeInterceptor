@@ -10,6 +10,6 @@
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/5"/>
 	<classpathentry kind="lib" path="/Users/jcart/Programming/eclipse/workspace107/WmRndInvokeInterceptor/lib/json-simple-1.1.1.jar"/>
 	<classpathentry kind="lib" path="/Applications/SoftwareAG/10.7/IntegrationServer/instances/default/packages/WmTN/code/jars/static/tncore.jar"/>
-	<classpathentry kind="lib" path="lib/uhm-apm-agent.jar" sourcepath="/UHM/src/apm-agent-core/src/main/java"/>
+	<classpathentry kind="lib" path="lib/uhm-apm-agent.jar" sourcepath="/Users/jcart/Programming/eclipse/workspace10.11/UHM/apm-agent-core/src/main/java"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

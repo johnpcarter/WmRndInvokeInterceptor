@@ -1,10 +1,8 @@
 package com.softwareag.wm.e2e.agent.skywalking;
 
-
 import java.util.Map;
-import java.util.Stack;
 import java.util.StringTokenizer;
-
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 
@@ -12,7 +10,6 @@ import org.apache.skywalking.apm.agent.core.context.CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.ContextCarrier;
 import org.apache.skywalking.apm.agent.core.context.ContextManager;
 import org.apache.skywalking.apm.agent.core.context.ContextSnapshot;
-import org.apache.skywalking.apm.agent.core.context.RuntimeContext;
 import org.apache.skywalking.apm.agent.core.context.SW6CarrierItem;
 import org.apache.skywalking.apm.agent.core.context.trace.AbstractSpan;
 import org.apache.skywalking.apm.agent.core.context.trace.NoopSpan;
@@ -38,57 +35,9 @@ import com.wm.data.IDataUtil;
 import com.wm.lang.ns.NSService;
 import com.wm.net.EncodeURL;
 
-public class ServiceUtils {
-	
-	private static class SpanTracker {
-						
-		ContextSnapshot snapshot = null;
-		
-		private AbstractSpan parentSpan;
-		SpanTracker grandadTracker = null;
-		
-		private int count = 0;
-		
-		SpanTracker(ContextSnapshot snapshot, AbstractSpan span, SpanTracker grandadTracker) {
-			this.snapshot = snapshot;
-			this.parentSpan = span;
-			this.grandadTracker = grandadTracker;
-						
-			span.prepareForAsync();
+public class SpanTools {
 
-			if (this.grandadTracker != null) {
-				this.grandadTracker.count += 1;
-				System.out.println("Incrementing dependents for " + this.grandadTracker.parentSpan.getOperationName() + " to " + this.grandadTracker.count);
-			}
-			
-	 		System.out.println("asyncing span " + getFullyQualifiedName(span));			
-		}
-		
-		boolean isFinished() {
-			return count == 0;
-		}
-		
-		protected synchronized void complete() {
-			
-			if (this.count > 0 ) {
-				System.out.println("deferring sync for span " + parentSpan.getOperationName() + " / " + count);
-				this.count -= 1;
-			} else {
-				
-				System.out.println("syncing span " + getFullyQualifiedName(parentSpan));
-
-				this.parentSpan.asyncFinish();
-								
-				if (grandadTracker != null) {// && grandadSpan.isFinished()) {
-				// check if we can finally finish grandparent too		
-				
-					grandadTracker.complete();
-				}
-			}
-		}
-	}
-
-	private static final ILog logger = LogManager.getLogger(ServiceUtils.class);
+	private static final ILog logger = LogManager.getLogger(SpanTools.class);
 	/**
 	 * This is set on uhm dev, test machines to set tenantId.
 	 */
@@ -104,30 +53,32 @@ public class ServiceUtils {
 		
 	private static ThreadLocal<SpanTracker> PARENT_SPAN = new ThreadLocal<>();
 
-	private ServiceUtils() {
+	private SpanTools() {
 		// do nothing
 	}
 
+	public static boolean isDeveloperMode() {
+		return DEVELOPER_MODE;
+	}
+	
 	/**
 	 * Starts an entry span from the HTTPState
 	 * 
 	 * @param gState - current HTTPState
 	 * @throws ParseException 
 	 */
-	public static void startEntrySpan(String entityName, String serviceName, IData pipeline, String customTransactionId, InvokeState state, String component) {
+	public static void startEntrySpan(String serviceName, String entityName, String customTransactionId, InvokeState state, Map<String, String> swValues, String component) {
 			
- 		System.out.println("Starting entry span for " + serviceName);
-
-		ContextCarrier contextCarrier = createContextCarrier(getGlobalTraceId(pipeline));
+		ContextCarrier contextCarrier = createContextCarrier(swValues);
 
 		// start a entry span to denote that we have entered into IS
-		AbstractSpan span = ContextManager.createEntrySpan(entityName, contextCarrier);
+		AbstractSpan span = ContextManager.createEntrySpan(serviceName, contextCarrier);
 				
-		//ContextManager.inject(contextCarrier); // sw6 key is only required on exitspan
-				
+ 		System.out.println(Thread.currentThread().getId() + " - Started entry span for " + serviceName + " / " + ContextManager.getGlobalTraceId() + " / " + ContextManager.activeSpan().getSpanId());
+
 		// only if a valid span is created, we should populate the rest of span
 		if (!(ContextManager.activeSpan() instanceof NoopSpan)) {
-
+			
 			populateSpanData(span, entityName, serviceName, customTransactionId, state, component);
 
 			SpanLayer.asHttp(span);
@@ -139,46 +90,101 @@ public class ServiceUtils {
 	 * @param gState - current HTTPState
 	 * @throws ParseException 
 	 */
-	public static void startEntrySpan(String entityName, String transactionId) throws ParseException {
+	public static void startEntrySpan(String serviceName, String transactionId, Map<String, String> swValues, String component) throws ParseException {
 
- 		System.out.println("Starting entry span for " + entityName);
-
-		ContextCarrier contextCarrier = createContextCarrier(transactionId);
+		ContextCarrier contextCarrier = createContextCarrier(swValues);
 
 		// start a entry span to denote that we have entered into IS
-		 ContextManager.createEntrySpan(entityName, contextCarrier);
+		ContextManager.createEntrySpan(serviceName, contextCarrier);
+		 
+ 		System.out.println(Thread.currentThread().getId() + " - Started entry span for " + serviceName + " / " + ContextManager.getGlobalTraceId() + " / " + ContextManager.activeSpan().getSpanId());
 	}
 
-	public static void startLocalSpan(String entityName, String serviceName, String customTransactionId, InvokeState state, String component) {
+	public static void startLocalSpan(String serviceName, String entityName, String customTransactionId, InvokeState state, String component) {
 
- 		System.out.println("Starting local span " + serviceName + " under " + getFullyQualifiedName());
+ 		System.out.println(Thread.currentThread().getId() + " - Starting local span " + serviceName + " under " + getServiceNameForActiveSpan() + " / " + ContextManager.getGlobalTraceId());
 
 		AbstractSpan span = ContextManager.createLocalSpan(serviceName);
 		
 		populateSpanData(span, entityName, serviceName, customTransactionId, state, component);
 	}
 	
- 	public static IData startExitSpan(String entityName, IData headers, String remotePeer) throws ParseException {
+	public static void startLocalSpanFromContext(String serviceName, final EnhancedInstance objInst) {
+		
+		if (objInst.getSkyWalkingDynamicField() != null) {
+
+	 		System.out.println(Thread.currentThread().getId() + " - Starting local span from thread context " + serviceName + " under " + getServiceNameForActiveSpan() + " / " + ContextManager.getGlobalTraceId());
+
+			SpanTracker snap = (SpanTracker) objInst.getSkyWalkingDynamicField();
+			// start a span from the given context
+			
+			AbstractSpan span = ContextManager.createLocalSpan(serviceName);
+			ContextManager.continued(snap.snapshot);
+												
+			PARENT_SPAN.set(snap);
+									
+	 		System.out.println(Thread.currentThread().getId() + " - Starting in new thread local span " + serviceName + " under " + getServiceNameForSpan(snap.parentSpan) + " / " + ContextManager.getGlobalTraceId());
+		}
+	}
 	
-		ContextCarrier contextCarrier = createContextCarrier(null);
- 		ContextManager.createExitSpan(entityName, contextCarrier, remotePeer);
-		ContextManager.inject(contextCarrier);
+	public static IData startExitSpanWithHttpHeaders(String serviceName, String remotePeer, IData httpHeaders) throws ParseException {
+		
+		Map<String, String> header = startExitSpan(serviceName, remotePeer);
+		
+		if (httpHeaders == null) {
+			httpHeaders = IDataFactory.create();	
+		}
+		
+		IDataCursor c = httpHeaders.getCursor();
+		for (String key : header.keySet()) {
+			IDataUtil.put(c, key, header.get(key));
+		}
+		c.destroy();
+		
+		return httpHeaders;
+	}
+	
+	public static Map<String, String> startExitSpan(String serviceName, String remotePeer) throws ParseException {
  		
- 		if (headers == null) {
- 			headers = IDataFactory.create();
- 		}
+ 		System.out.println(Thread.currentThread().getId() + " - Starting exit span " + serviceName + " under " + getServiceNameForActiveSpan() + "/" + ContextManager.getGlobalTraceId() + " / " + ContextManager.activeSpan().getSpanId());
+		
+ 		ContextCarrier contextCarrier = createContextCarrier(null);
+ 		ContextManager.createExitSpan(serviceName, contextCarrier, remotePeer);
+ 		ContextManager.inject(contextCarrier); // this is the magic where the context carrier gets updated with the current context.
  		
- 		IDataCursor c = headers.getCursor();
+ 		System.out.println(Thread.currentThread().getId() + " - Parent landscape is " + contextCarrier.getParentLandscape());
+		System.out.println(Thread.currentThread().getId() + " - Parent endpoint is " + contextCarrier.getParentEndpointName());
+		System.out.println(Thread.currentThread().getId() + " - Parent instance is " + contextCarrier.getParentServiceInstanceId());
+		System.out.println(Thread.currentThread().getId() + " - trace instance is " + contextCarrier.getTraceSegmentId());
+		
+		System.out.println(Thread.currentThread().getId() + " - entry point instance is " + contextCarrier.getEntryServiceInstanceId());
+		System.out.println(Thread.currentThread().getId() + " - entry name is " + contextCarrier.getEntryEndpointName());
+ 		
+ 		HashMap<String, String> vals = new HashMap<String, String>();
  		
         CarrierItem next = contextCarrier.items();
         while (next.hasNext()) {
             next = next.next();
-            IDataUtil.put(c, next.getHeadKey(), next.getHeadValue());
+            vals.put(next.getHeadKey(), next.getHeadValue());
         }
         
-        c.destroy();
-        
-        return headers;
+        return vals;
+	}
+	
+	public static void log(String subject, String text) {
+
+		AbstractSpan span = ContextManager.activeSpan();
+		
+		if (span != null) {
+			//span.tag(subject, text); // deprecated!!
+			//span.info(text); // only as of 8.x
+			
+			// try this instead
+			Map<String, String> trace = new HashMap<String, String>();
+			trace.put(subject, text);
+			
+			span.log(new Date().getTime(), trace); 
+		}
 	}
 	
 	/**
@@ -197,14 +203,12 @@ public class ServiceUtils {
 	}
 
 	public static void stopSpan(String serviceName) {
-	
-		if (ContextManager.isActive() && serviceName.equals(getFullyQualifiedName())) {
+			
+		if (ContextManager.isActive() && serviceName.equals(getServiceNameForActiveSpan())) {
 					
-	 		System.out.println("stopping span " + serviceName);
-
 			stopSpan();
-		} else if (getFullyQualifiedName() != null) {
-			System.out.println("mismatched spans " + serviceName + " / " + getFullyQualifiedName());
+		} else if (getServiceNameForActiveSpan() != null) {
+			System.out.println(Thread.currentThread().getId() + " - mismatched spans " + serviceName + " / " + getServiceNameForActiveSpan());
 		}
 	}
 	
@@ -217,8 +221,15 @@ public class ServiceUtils {
 			if (ContextManager.isActive()) {
 				// always stop the span, no matter what type
 				
-				System.out.println("span closed " + getFullyQualifiedName());
-				ContextManager.stopSpan();				
+				String opName = ContextManager.activeSpan().getOperationName();
+				
+				ContextManager.stopSpan();
+				
+				if (!ContextManager.isActive()) {
+					System.out.println(Thread.currentThread().getId() + " - top level span successfully stopped: " + opName);
+				} else {
+					System.out.println(Thread.currentThread().getId() + " - stopped span " + opName + ", active span is now " + ContextManager.activeSpan().getOperationName());
+				}
 			}
 		} catch (Exception e) {
 			logger.error(ERROR_MSG, e);
@@ -235,31 +246,12 @@ public class ServiceUtils {
 		objInst.setSkyWalkingDynamicField(snap);		
 	}
 	
-	public static void startLocalSpanFromContext(String serviceName, final EnhancedInstance objInst) {
-	
-		if (objInst.getSkyWalkingDynamicField() != null) {
-
-			SpanTracker snap = (SpanTracker) objInst.getSkyWalkingDynamicField();
-			// start a span from the given context
-			
-			AbstractSpan span = ContextManager.createLocalSpan(serviceName);
-			ContextManager.continued(snap.snapshot);
-												
-			PARENT_SPAN.set(snap);
-									
-	 		System.out.println("Starting in new thread local span " + serviceName + " under " + getFullyQualifiedName(snap.parentSpan));
-	 		
-	 		System.out.println("Global trace id is " + getGlobalTraceId());
-		}
-	}
-	
 	public static void asyncCompleted(String serviceName, final EnhancedInstance objInst) {	
 		
 		if (objInst.getSkyWalkingDynamicField() != null) {
 		
 			SpanTracker snap = (SpanTracker) objInst.getSkyWalkingDynamicField();
-			AbstractSpan span = ContextManager.activeSpan();
-	   		ServiceUtils.stopSpan(serviceName);
+	   		stopSpan(serviceName);
 			snap.complete();
 			
 			PARENT_SPAN.set(null);
@@ -312,11 +304,11 @@ public class ServiceUtils {
 	 * @return
 	 * @throws ParseException
 	 */
-	public static ContextCarrier createContextCarrier(String transactionId) {
+	public static ContextCarrier createContextCarrier(Map<String, String> swIdentifiers) {
 		
 		ContextCarrier contextCarrier = new ContextCarrier();
 		
-		if (transactionId != null) {
+		if (swIdentifiers != null) {
 			
 			// used for non http clients such as UM etc.
 			
@@ -325,11 +317,18 @@ public class ServiceUtils {
 			while (next.hasNext()) {
 				next = next.next();
 
-				if (next.getHeadKey().contentEquals(SW6CarrierItem.HEADER_NAME)) {
-					next.setHeadValue(transactionId);
-				}
+				next.setHeadValue(swIdentifiers.get(next.getHeadKey()));
 			}
-		} else if (getGlobalTraceId() != null) {
+			
+			System.out.println(Thread.currentThread().getId() + " - Parent landscape is " + contextCarrier.getParentLandscape());
+			System.out.println(Thread.currentThread().getId() + " - Parent endpoint is " + contextCarrier.getParentEndpointName());
+			System.out.println(Thread.currentThread().getId() + " - Parent instance is " + contextCarrier.getParentServiceInstanceId());
+			System.out.println(Thread.currentThread().getId() + " - trace instance is " + contextCarrier.getTraceSegmentId());
+			
+			System.out.println(Thread.currentThread().getId() + " - entry point instance is " + contextCarrier.getEntryServiceInstanceId());
+			System.out.println(Thread.currentThread().getId() + " - entry name is " + contextCarrier.getEntryEndpointName());
+
+		} else if (Service.getHttpRequestHeader() != null) {
 			
 			// propagate existing header fields
 			
@@ -340,28 +339,26 @@ public class ServiceUtils {
 			while (next.hasNext()) {
 				next = next.next();
 				String v = headers.get(next.getHeadKey());
-				
-				System.out.println("looking for " + next.getHeadKey() + " = " + v);
-				
+								
 				if (v != null) {
 					next.setHeadValue(v);
 				}
 			}
 		}
-		
+			
 		return contextCarrier;
 	}
 	
-	public static String getFullyQualifiedName() {
+	public static String getServiceNameForActiveSpan() {
 		
 		if (ContextManager.isActive()) {
-			return getFullyQualifiedName(ContextManager.activeSpan());
+			return getServiceNameForSpan(ContextManager.activeSpan());
 		} else {
 			return null;
 		}
 	}
 	
-	public static String getFullyQualifiedName(AbstractSpan span) {
+	public static String getServiceNameForSpan(AbstractSpan span) {
 	
 		String name = null;
 		
@@ -384,40 +381,10 @@ public class ServiceUtils {
 		return name;
 	}
 	
-	public static BizDocWrapper getBizdocFromPipeline(IData pipeline) {
-		    
-	    	IDataCursor c = pipeline.getCursor();
-	    	IData bizDoc = IDataUtil.getIData(c, "bizdoc");
-	    	c.destroy();
-	    	
-	    	return bizDoc != null ? new BizDocWrapper(bizDoc) : null;
-	}
-	 
-	public static String getGlobalTraceId(IData pipeline) {
-		
-		BizDocWrapper bizdoc = getBizdocFromPipeline(pipeline);
-		
-		if (bizdoc == null || bizdoc.getGlobalTracingId() == null) {
-			return getGlobalTraceId();
-		} else {
-			return bizdoc.getGlobalTracingId();
-		}
-	}
-
-	public static String getGlobalTraceId(BizDocWrapper bizdoc) {
-		
-		String id = bizdoc.getGlobalTracingId();
-		
-		if (id == null) {
-			return getGlobalTraceId();
-		} else {
-			return id;
-		}
-	}
 	
 	public static String getGlobalTraceId() {
 		
-		if (ContextManager.getGlobalTraceId() != "N/A") {
+		if (!ContextManager.getGlobalTraceId().equals("N/A")) {
 			
 			return ContextManager.getGlobalTraceId();
 		} else {
@@ -624,4 +591,49 @@ public class ServiceUtils {
 
         return contextIDs;
     }
+    
+    private static class SpanTracker {
+		
+		ContextSnapshot snapshot = null;
+		
+		private AbstractSpan parentSpan;
+		SpanTracker grandadTracker = null;
+		
+		private int count = 0;
+		
+		SpanTracker(ContextSnapshot snapshot, AbstractSpan span, SpanTracker grandadTracker) {
+			
+			this.snapshot = snapshot;
+			this.parentSpan = span;
+			this.grandadTracker = grandadTracker;
+						
+			span.prepareForAsync();
+
+			if (this.grandadTracker != null) {
+				this.grandadTracker.count += 1;
+				System.out.println(Thread.currentThread().getId() + " - Incrementing dependents for " + this.grandadTracker.parentSpan.getOperationName() + " to " + this.grandadTracker.count);
+			}
+			
+	 		System.out.println(Thread.currentThread().getId() + " - asyncing span " + getServiceNameForSpan(span));			
+		}
+		
+		protected synchronized void complete() {
+			
+			if (this.count > 0 ) {
+				System.out.println(Thread.currentThread().getId() + " - deferring sync for span " + parentSpan.getOperationName() + " / " + count);
+				this.count -= 1;
+			} else {
+				
+				System.out.println(Thread.currentThread().getId() + " - syncing span " + getServiceNameForSpan(parentSpan));
+
+				this.parentSpan.asyncFinish();
+								
+				if (grandadTracker != null) {// && grandadSpan.isFinished()) {
+				// check if we can finally finish grandparent too		
+				
+					grandadTracker.complete();
+				}
+			}
+		}
+	}
 }

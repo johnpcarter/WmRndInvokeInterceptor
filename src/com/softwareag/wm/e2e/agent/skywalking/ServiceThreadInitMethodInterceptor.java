@@ -26,6 +26,8 @@ import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.EnhancedI
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.InstanceMethodsAroundInterceptor;
 import org.apache.skywalking.apm.agent.core.plugin.interceptor.enhance.MethodInterceptResult;
 
+import com.wm.app.tn.util.TNServiceThread;
+
 public class ServiceThreadInitMethodInterceptor implements InstanceMethodsAroundInterceptor {
 	
     @Override
@@ -33,8 +35,10 @@ public class ServiceThreadInitMethodInterceptor implements InstanceMethodsAround
         final Class<?>[] argumentsTypes, final MethodInterceptResult result) {
           	
    		if (ContextManager.isActive()) {
-   			   			
-   			ServiceUtils.prepareForAsync(objInst);
+   			
+   			if (!(objInst instanceof TNServiceThread)) { // exclude TN threads as rules are treated as exit spans, hence don't need to join them to any ensuing child spans
+   				SpanTools.prepareForAsync(objInst);
+   			}
        }
     }
 

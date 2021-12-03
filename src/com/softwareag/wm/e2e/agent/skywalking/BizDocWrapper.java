@@ -3,6 +3,8 @@ package com.softwareag.wm.e2e.agent.skywalking;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.skywalking.apm.agent.core.context.ContextManager;
+
 import com.wm.app.tn.profile.ProfileStore;
 import com.wm.app.tn.profile.ProfileStoreException;
 import com.wm.data.IData;
@@ -12,7 +14,7 @@ import com.wm.data.IDataUtil;
 
 public class BizDocWrapper {
 
-	public static final String GLOBAL_TRACING_ID = "GlobalTracingID";
+	public static final String GLOBAL_TRACING_ID = "e2e";
 	
 	public static final String  DOC_ID = "DocumentID";
 	public static final String 	DOC_SENDER_ID = "SenderID";
@@ -86,12 +88,12 @@ public class BizDocWrapper {
 		}
     }
  
-    public String getGlobalTracingId() {
+    public Map<String, String> getGlobalTracingId() {
     	
-    	return getBizDocAttributes().get(GLOBAL_TRACING_ID);
+    	return getBizDocAttributes(GLOBAL_TRACING_ID);
     }
     
-    public void setGlobalTracingId(String id) {
+    public void setGlobalTracingId(Map<String, String> vals) {
     	
     	IDataCursor c = _bizDoc.getCursor();
     	IData attribs = IDataUtil.getIData(c, DOC_ATTRIBUTES);
@@ -104,37 +106,50 @@ public class BizDocWrapper {
     	c.destroy();
     	
     	c = attribs.getCursor();
-    	IDataUtil.put(c, GLOBAL_TRACING_ID, id);
+    	for (String key : vals.keySet()) {
+    		IDataUtil.put(c, GLOBAL_TRACING_ID + ":" + key, vals.get(key));
+    	}
+    	
+    	IDataUtil.put(c, GLOBAL_TRACING_ID + ":" + "id", ContextManager.getGlobalTraceId());
+    	
     	c.destroy();
     }
     
-    public Map<String, String> getBizDocAttributes() {
+    public Map<String, String> getBizDocAttributes(String filter) {
     	
+    	Map<String, String> attributes = new HashMap<String, String>();
+
     	IDataCursor c = _bizDoc.getCursor();
     	IData attribs = IDataUtil.getIData(c, DOC_ATTRIBUTES);
     	c.destroy();
-    	
-    	Map<String, String> attributes = new HashMap<String, String>();
-    	
-    	c = attribs.getCursor();
-    	
-    	c.first();
-    	
-    	do {
-    		String key = c.getKey();
-    		Object value = c.getValue();
-    		
-    		if (value instanceof String) {
-    			attributes.put(key, (String) value);
-    		} else if (value instanceof Boolean || value instanceof Integer || value instanceof Double || value instanceof Float) {
-    			attributes.put(key, "" + value);
-    		}
-    		
-    		c.next();
 
-    	} while(c.hasMoreData());
+    	if (attribs != null) {
+    		c = attribs.getCursor();
     	
-    	c.destroy();
+    		c.first();
+    	
+    		do {
+    			String key = c.getKey();
+    			Object value = c.getValue();
+    		
+    			if (filter == null || key.startsWith(filter)) {
+    				
+    				if (filter != null && key.indexOf(filter) != -1) {
+    					key = key.substring(key.indexOf(filter)+4);
+    				}
+    				
+    				if (value instanceof String) {
+    					attributes.put(key, (String) value);
+    				} else if (value instanceof Boolean || value instanceof Integer || value instanceof Double || value instanceof Float) {
+    					attributes.put(key, "" + value);
+    				}
+    			}
+    			c.next();
+
+    		} while(c.hasMoreData());
+    	
+    		c.destroy();
+    	}
     	
     	return attributes;
     }

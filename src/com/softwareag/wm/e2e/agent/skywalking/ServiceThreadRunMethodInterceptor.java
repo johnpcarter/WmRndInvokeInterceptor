@@ -43,11 +43,11 @@ public class ServiceThreadRunMethodInterceptor implements InstanceMethodsAroundI
 
     	if (objInst.getSkyWalkingDynamicField() != null) {
               
-   		   System.out.println("** THREAD ** - start - " + serviceName);
+   		   	System.out.println(Thread.currentThread().getId() + " - ** THREAD ** - start - " + serviceName);
 
-   		   ServiceUtils.startLocalSpanFromContext(serviceName, objInst);   		   
+   		   	SpanTools.startLocalSpanFromContext(serviceName, objInst);   		   
 		} else {
-	   		   System.out.println("** THREAD ** - ignored - " + serviceName);
+			System.out.println(Thread.currentThread().getId() + " - ** THREAD ** - ignored - " + serviceName);
 		}
     }
 
@@ -57,11 +57,9 @@ public class ServiceThreadRunMethodInterceptor implements InstanceMethodsAroundI
 					
     	if (ContextManager.isActive()) {
     		String serviceName = generateOperationName(objInst, method);
-
-    		//ServiceUtils.stopSpan(serviceName);
 			
-    		System.out.println("** THREAD ** - end - " + serviceName);
-    		ServiceUtils.asyncCompleted(serviceName, objInst);
+    		System.out.println(Thread.currentThread().getId() + " - ** THREAD ** - end - " + serviceName);
+    		SpanTools.asyncCompleted(serviceName, objInst);
     	}
     	
         return ret;

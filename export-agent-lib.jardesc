@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<jardesc>
+    <jar path="/Applications/SoftwareAG/10.11/IntegrationServer/instances/default/packages/JcEtoEUseCases/code/jars/static/is-agent.jar"/>
+    <options buildIfNeeded="true" compress="true" descriptionLocation="/WmRndInvokeInterceptor/export-agent-lib.jardesc" exportErrors="true" exportWarnings="true" includeDirectoryEntries="false" overwrite="false" saveDescription="true" storeRefactorings="false" useSourceFolders="false"/>
+    <storedRefactorings deprecationInfo="true" structuralOnly="false"/>
+    <selectedProjects/>
+    <manifest generateManifest="true" manifestLocation="" manifestVersion="1.0" reuseManifest="false" saveManifest="false" usesManifest="true">
+        <sealing sealJar="false">
+            <packagesToSeal/>
+            <packagesToUnSeal/>
+        </sealing>
+    </manifest>
+    <selectedElements exportClassFiles="true" exportJavaFiles="false" exportOutputFolder="false">
+        <file path="/WmRndInvokeInterceptor/skywalking-plugin.def"/>
+        <javaElement handleIdentifier="=WmRndInvokeInterceptor/src"/>
+    </selectedElements>
+</jardesc>
